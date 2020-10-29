@@ -26,6 +26,8 @@ export default function App() {
       const connection = await connectToSolana();
       const newAccount = await createAccount();
 
+      await connection.requestAirdrop(newAccount.publicKey, 100000000);
+
       console.log(
         await connection.getBalance(newAccount.publicKey),
         "get balance",

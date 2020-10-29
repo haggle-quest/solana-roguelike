@@ -30,7 +30,7 @@ switch (process.env.CLUSTER) {
 
   default:
     console.log("attempting to connect to local node");
-    url = "https://api.mainnet-beta.solana.com";
+    url = "http://devnet.solana.com";
 }
 
 export default async function connectToSolana() {
