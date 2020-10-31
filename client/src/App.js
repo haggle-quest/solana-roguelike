@@ -25,13 +25,15 @@ export default function App() {
     const asyncFunc = async () => {
       const connection = await connectToSolana();
       const newAccount = await createAccount();
+      const pie = await connection.getBalance(newAccount.publicKey);
+
+      console.log(JSON.stringify(pie));
 
       await connection.requestAirdrop(newAccount.publicKey, 100000000);
 
-      console.log(
-        await connection.getBalance(newAccount.publicKey),
-        "get balance",
-      );
+      const poop = await connection.getBalance(newAccount.publicKey);
+
+      console.log(JSON.stringify(poop));
 
       setSolana(connection);
       setAccount(newAccount);
