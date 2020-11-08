@@ -1,6 +1,6 @@
-import { Connection } from "@solana/web3.js";
+const { Connection } = require("@solana/web3.js");
 
-import dotenv from "dotenv";
+const dotenv = require("dotenv");
 
 dotenv.config();
 
