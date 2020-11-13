@@ -5,7 +5,12 @@ const axios = require("axios");
 const {
   default: connectToSolana,
 } = require("./client/src/utils/connectToSolana");
-const { PublicKey, Account } = require("@solana/web3.js");
+const {
+  PublicKey,
+  Account,
+  TransactionInstruction,
+  Transaction,
+} = require("@solana/web3.js");
 require("dotenv");
 
 import * as BufferLayout from "buffer-layout";
@@ -14,11 +19,13 @@ import {
   createAccount,
   createTokenAccount,
   mintToken,
+  makeAccount,
+  sendAndConfirmTransaction,
 } from "./utils";
 
 const getData = {
   programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-  voteProgramId: "7qRP43DEvp1NRGXu76bMzbj5rzYmrJi1AYrXueyYMYHh",
+  voteProgramId: "6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry",
   accountId: "2KFnnyTdPm6y1zhtUrSAqn7JbqoVnj683GbEV3E96DYn",
   mintAuthority: "G5Qhd8KnMm7iLbTkseuZdsAbrP9V71eqizQgenHQw8vb",
 };
@@ -29,6 +36,7 @@ const tokenPublicKey = new PublicKey(
 );
 
 const TOKEN_PROGRAM_ID = new PublicKey(getData.programId);
+const VOTE_PROGRAM_ID = new PublicKey(getData.voteProgramId);
 
 const app = express();
 
@@ -49,16 +57,58 @@ app.use(
 app.get("/fetch-organizations", async (req, res) => {
   const connection = await connectToSolana();
 
+  const privateAccount = await createAccount(process.env.PRIVATE_KEY);
   const owner = req.query.owner || "facebook";
   const repo = req.query.repo || "react";
-  let pk = new PublicKey(getData.accountId);
-  let account = await connection.getAccountInfo(pk);
-  const data = await Buffer.from(account.data);
 
-  const accountDataLayout = BufferLayout.struct([
-    BufferLayout.u32("issueId"),
-    BufferLayout.u32("numberOfVotes"),
-  ]);
+  const issue_number = 55;
+
+  // find all accounts owned by 6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry
+  // loop over them and decode them, and check if the issue number already exists
+  // if so update s.accountId with that accountId
+  // else create new account id and pass the issue number in the instruction data
+
+  const votingProgram = new PublicKey(getData.voteProgramId);
+  const getVotingResults = await connection.getProgramAccounts(votingProgram);
+
+  const getCorrectItem = getVotingResults.find((githubIssues) => {
+    const issue = Buffer.from(githubIssues.account.data);
+    const accountDataLayout = BufferLayout.struct([
+      BufferLayout.u32("issueId"),
+      BufferLayout.u32("numberOfVotes"),
+    ]);
+
+    const counts = accountDataLayout.decode(issue);
+    if (counts.issueId.toString() === issue_number.toString()) return true;
+  });
+
+  if (getCorrectItem) {
+    // cool
+    console.log(getCorrectItem, "correct item");
+  } else {
+    const numBytes = 8;
+    const accountId = await makeAccount(
+      connection,
+      privateAccount,
+      numBytes,
+      VOTE_PROGRAM_ID,
+    );
+
+    const instruction_data = Buffer.from([issue_number]);
+
+    const instruction = new TransactionInstruction({
+      keys: [{ pubkey: accountId, isSigner: false, isWritable: true }],
+      programId: VOTE_PROGRAM_ID,
+      data: instruction_data,
+    });
+
+    await sendAndConfirmTransaction(
+      "vote",
+      connection,
+      new Transaction().add(instruction),
+      privateAccount,
+    );
+  }
 
   const fetchList = await axios.get(
     `https://api.github.com/repos/${owner}/${repo}/issues?state=all`,
@@ -75,7 +125,7 @@ app.get("/fetch-organizations", async (req, res) => {
     }
   });
 
-  res.json("test");
+  res.send("test");
 });
 
 export const mintTokensToAccount = async (createdMintAccount) => {
@@ -94,8 +144,6 @@ export const mintTokensToAccount = async (createdMintAccount) => {
 
 app.post("/burn-token", async (req, res) => {
   const connection = await connectToSolana();
-
-  console.log(req.body, "REQ");
 
   const userAccount = new Account(
     Object.values(req.body.newAccount._keypair.secretKey),

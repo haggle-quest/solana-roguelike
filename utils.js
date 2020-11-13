@@ -1,4 +1,10 @@
-import { Account, PublicKey } from "@solana/web3.js";
+import {
+  Account,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction as realSendAndConfirmTransaction,
+} from "@solana/web3.js";
 import * as bip39 from "bip39";
 import * as bip32 from "bip32";
 import nacl from "tweetnacl";
@@ -85,10 +91,80 @@ export const createTokenAccount = async ({
     feePayer,
   );
 
-  const HappyFace = (
+  const happyFace = (
     await token.createAccount(new PublicKey(owner._keypair.publicKey))
   ).toString();
 
-  console.log(HappyFace, "happy Face???!!");
-  return HappyFace;
+  console.log(happyFace, "happy Face???!!");
+  return happyFace;
 };
+
+export const sendAndConfirmTransaction = async (
+  title,
+  connection,
+  transaction,
+  ...signers
+) => {
+  const when = Date.now();
+
+  const signature = await realSendAndConfirmTransaction(
+    connection,
+    transaction,
+    signers,
+    {
+      confirmations: 1,
+      skipPreflight: true,
+      commitment: "singleGossip",
+    },
+  );
+
+  return signature;
+  // const body = {
+  //   time: new Date(when).toString(),
+  //   signature,
+  //   instructions: transaction.instructions.map((i) => {
+  //     return {
+  //       keys: i.keys.map((keyObj) => keyObj.pubkey.toBase58()),
+  //       programId: i.programId.toBase58(),
+  //       data: "0x" + i.data.toString("hex"),
+  //     };
+  //   }),
+  // };
+
+  // notify(title, YAML.stringify(body).replace(/"/g, ""));
+};
+
+export async function makeAccount(
+  connection,
+  payerAccount,
+  numBytes,
+  programId,
+) {
+  const dataAccount = new Account();
+
+  const rentExemption = await connection.getMinimumBalanceForRentExemption(
+    numBytes,
+  );
+
+  const transaction = new Transaction().add(
+    SystemProgram.createAccount({
+      fromPubkey: payerAccount.publicKey,
+      newAccountPubkey: dataAccount.publicKey,
+      lamports: rentExemption,
+      space: numBytes,
+      programId: programId,
+    }),
+  );
+
+  const confirm = await sendAndConfirmTransaction(
+    "createAccount",
+    connection,
+    transaction,
+    payerAccount,
+    dataAccount,
+  );
+
+  console.log(confirm, "confirm");
+
+  return dataAccount.publicKey;
+}
