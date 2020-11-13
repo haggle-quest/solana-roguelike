@@ -2,22 +2,24 @@ const express = require("express");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const { includes } = require("lodash");
 const {
   default: connectToSolana,
 } = require("./client/src/utils/connectToSolana");
 const { PublicKey, Account } = require("@solana/web3.js");
-import { Token } from "@solana/spl-token";
-
 require("dotenv");
 
 import * as BufferLayout from "buffer-layout";
-import { createAccount } from "./getAccount";
+import { burnTokens, createAccount, mintToken } from "./utils";
 
 const getData = {
   programId: "7qRP43DEvp1NRGXu76bMzbj5rzYmrJi1AYrXueyYMYHh",
   accountId: "2KFnnyTdPm6y1zhtUrSAqn7JbqoVnj683GbEV3E96DYn",
+  mintAuthority: "G5Qhd8KnMm7iLbTkseuZdsAbrP9V71eqizQgenHQw8vb",
 };
+
+const tokenPublicKey = new PublicKey(
+  "A8kuHURfz6YorYQBsxd4HrSx5GyhAUST722tunzPFwna",
+);
 
 const app = express();
 
@@ -43,11 +45,10 @@ app.get("/fetch-organizations", async (req, res) => {
   let pk = new PublicKey(getData.accountId);
   let account = await connection.getAccountInfo(pk);
   const data = await Buffer.from(account.data);
-  //   let corectdata = await data.toString();
 
   const accountDataLayout = BufferLayout.struct([
-    BufferLayout.u32("zebra"),
-    BufferLayout.u32("count2"),
+    BufferLayout.u32("issueId"),
+    BufferLayout.u32("numberOfVotes"),
   ]);
 
   const fetchList = await axios.get(
@@ -65,40 +66,60 @@ app.get("/fetch-organizations", async (req, res) => {
     }
   });
 
-  console.log(fetchList.data.length, filteredList.length);
-
   res.json("test");
 });
 
-const TOKEN_PROGRAM_ID = new PublicKey(getData.programId);
-
 export const createTokenAccount = async (account) => {
-  const tokenPublicKey = new PublicKey(account._keypair.publicKey);
-
-  const account2 = await createAccount(process.env.PRIVATE_KEY);
+  const TOKEN_PROGRAM_ID = new PublicKey(getData.programId);
+  const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
   const connection = await connectToSolana();
 
-  const poop = await connection.getBalance(account2.publicKey);
-  console.log(poop);
-
-  const token = await new Token(
+  const zebra = await mintToken({
     connection,
+    account,
     tokenPublicKey,
     TOKEN_PROGRAM_ID,
-    account2,
-  );
+    amount: 10,
+    privateAccount,
+  });
 
-  console.log(token);
-  return (await token.createAccount(tokenPublicKey)).toString();
+  return zebra;
 };
+
+app.post("/burn-token", async (req, res) => {
+  const userAccount = new Account(req.body.privateKey);
+
+  const connection = await connectToSolana();
+
+  try {
+    await burnTokens({
+      connection,
+      account,
+      tokenPublicKey,
+      TOKEN_PROGRAM_ID,
+      privateAccount,
+    });
+  } catch (e) {
+    console.error(e);
+  }
+
+  const tokenPublicKey = new PublicKey(account._keypair.publicKey);
+});
 
 app.get("/create-account", async (req, res) => {
   const newAccount = await new Account();
 
-  const what = await createTokenAccount(newAccount);
-  console.log(what);
-  res.send(newAccount);
+  const connection = await connectToSolana();
+  const privateAccount = await createAccount(process.env.PRIVATE_KEY);
+
+  const privateKeyPair = await new PublicKey(privateAccount._keypair.publicKey);
+
+  await connection.requestAirdrop(privateKeyPair, 100000000);
+
+  const tokenAccount = await createTokenAccount(newAccount);
+
+  res.send({ newAccount, tokenAccount });
 });
 
 app.put("update-account");
