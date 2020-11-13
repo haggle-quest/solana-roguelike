@@ -196,8 +196,11 @@ app.get("/create-account", async (req, res) => {
 
   console.log(tokenAccount, "Token account");
 
+  var readableAccount = {"publicKey": newAccount.publicKey.toString(),
+                        "privateKey": newAccount.secretKey.toString()}
+
   res.send({
-    newAccount,
+    readableAccount,
     createdMintAccount,
   });
 });
