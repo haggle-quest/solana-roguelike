@@ -19,7 +19,6 @@ function getAccountFromSeed(seed, walletIndex, accountIndex = 0) {
 }
 
 export const createAccount = async (secret) => {
-  console.log(secret, "SECRET");
   if (secret.includes(",")) {
     return new Account(
       secret
@@ -38,6 +37,7 @@ export const mintToken = async ({
   amount,
   TOKEN_PROGRAM_ID,
   account,
+  createdMintAccount,
   connection,
 }) => {
   const token = await new Token(
@@ -49,23 +49,46 @@ export const mintToken = async ({
   const privateKeyToMint = await new PublicKey(
     privateAccount._keypair.publicKey,
   );
-  const userAccountFee = await new PublicKey(account._keypair.publicKey);
+  const userAccountFee = await new PublicKey(createdMintAccount);
 
-  return await token.mintTo(userAccountFee, privateKeyToMint, [], amount);
+  return await token.mintTo(userAccountFee, privateAccount, [], amount);
 };
 
 export const burnTokens = async ({
-  mainAccount,
+  privateAccount,
   userAccount,
   TOKEN_PROGRAM_ID,
+  connection,
+  tokenPublicKey,
+  tokenAccount,
 }) => {
   const token = await new Token(
     connection,
     tokenPublicKey,
     TOKEN_PROGRAM_ID,
-    mainAccount,
+    privateAccount,
   );
 
   await token.burn(tokenAccount, userAccount, [], 1);
-  await createAccount(userAccount);
+};
+
+export const createTokenAccount = async ({
+  connection,
+  feePayer,
+  tokenPublicKey,
+  owner,
+}) => {
+  const token = new Token(
+    connection,
+    tokenPublicKey,
+    TOKEN_PROGRAM_ID,
+    feePayer,
+  );
+
+  const HappyFace = (
+    await token.createAccount(new PublicKey(owner._keypair.publicKey))
+  ).toString();
+
+  console.log(HappyFace, "happy Face???!!");
+  return HappyFace;
 };

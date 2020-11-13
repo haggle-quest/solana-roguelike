@@ -9,17 +9,26 @@ const { PublicKey, Account } = require("@solana/web3.js");
 require("dotenv");
 
 import * as BufferLayout from "buffer-layout";
-import { burnTokens, createAccount, mintToken } from "./utils";
+import {
+  burnTokens,
+  createAccount,
+  createTokenAccount,
+  mintToken,
+} from "./utils";
 
 const getData = {
-  programId: "7qRP43DEvp1NRGXu76bMzbj5rzYmrJi1AYrXueyYMYHh",
+  programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  voteProgramId: "7qRP43DEvp1NRGXu76bMzbj5rzYmrJi1AYrXueyYMYHh",
   accountId: "2KFnnyTdPm6y1zhtUrSAqn7JbqoVnj683GbEV3E96DYn",
   mintAuthority: "G5Qhd8KnMm7iLbTkseuZdsAbrP9V71eqizQgenHQw8vb",
 };
 
 const tokenPublicKey = new PublicKey(
+  // "H9KuqhhuuPaFuhjScjFvWMeksmnZ3n5s6M6WdA9nb4Sk",
   "A8kuHURfz6YorYQBsxd4HrSx5GyhAUST722tunzPFwna",
 );
+
+const TOKEN_PROGRAM_ID = new PublicKey(getData.programId);
 
 const app = express();
 
@@ -69,47 +78,51 @@ app.get("/fetch-organizations", async (req, res) => {
   res.json("test");
 });
 
-export const createTokenAccount = async (account) => {
-  const TOKEN_PROGRAM_ID = new PublicKey(getData.programId);
+export const mintTokensToAccount = async (createdMintAccount) => {
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
   const connection = await connectToSolana();
-
-  const zebra = await mintToken({
+  await mintToken({
     connection,
-    account,
+    createdMintAccount,
     tokenPublicKey,
     TOKEN_PROGRAM_ID,
     amount: 10,
     privateAccount,
   });
-
-  return zebra;
 };
 
 app.post("/burn-token", async (req, res) => {
-  const userAccount = new Account(req.body.privateKey);
-
   const connection = await connectToSolana();
+
+  console.log(req.body, "REQ");
+
+  const userAccount = new Account(
+    Object.values(req.body.newAccount._keypair.secretKey),
+  );
+
+  const tokenAccount = new PublicKey(req.body.createdMintAccount);
+
+  const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
   try {
     await burnTokens({
       connection,
-      account,
+      userAccount,
       tokenPublicKey,
       TOKEN_PROGRAM_ID,
       privateAccount,
+      tokenAccount,
     });
   } catch (e) {
     console.error(e);
   }
 
-  const tokenPublicKey = new PublicKey(account._keypair.publicKey);
+  res.send("burnt token");
 });
 
 app.get("/create-account", async (req, res) => {
   const newAccount = await new Account();
-
   const connection = await connectToSolana();
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
@@ -117,9 +130,22 @@ app.get("/create-account", async (req, res) => {
 
   await connection.requestAirdrop(privateKeyPair, 100000000);
 
-  const tokenAccount = await createTokenAccount(newAccount);
+  const createdMintAccount = await createTokenAccount({
+    connection,
+    tokenPublicKey,
+    TOKEN_PROGRAM_ID,
+    feePayer: privateAccount,
+    owner: newAccount,
+  });
 
-  res.send({ newAccount, tokenAccount });
+  const tokenAccount = await mintTokensToAccount(createdMintAccount);
+
+  console.log(tokenAccount, "Token account");
+
+  res.send({
+    newAccount,
+    createdMintAccount,
+  });
 });
 
 app.put("update-account");
