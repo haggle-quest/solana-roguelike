@@ -54,7 +54,7 @@ app.use(
   }),
 );
 
-app.get("/fetch-organizations", async (req, res) => {
+app.get("/fetch-votes", async (req, res) => {
   const connection = await connectToSolana();
 
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
