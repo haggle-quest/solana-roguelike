@@ -58,8 +58,8 @@ app.get("/fetch-organizations", async (req, res) => {
   const connection = await connectToSolana();
 
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
-  const owner = req.query.owner || "facebook";
-  const repo = req.query.repo || "react";
+  const owner = req.query.owner || "haggle-quest";
+  const repo = req.query.repo || "solana_game";
 
   const issue_number = 55;
 
@@ -118,14 +118,20 @@ app.get("/fetch-organizations", async (req, res) => {
   fetchList.data.forEach((listItem) => {
     if (listItem.labels && listItem.labels.length) {
       listItem.labels.forEach((label) => {
-        if (label.name === "Type: Bug") {
-          filteredList.push(listItem);
+        if (label.name === "voting") {
+          filteredList.push({
+            title: listItem.title,
+            issueId: listItem.number,
+            votes: Math.floor(Math.random() * 3) + 1,
+          });
         }
       });
     }
   });
 
-  res.send("test");
+  console.log(filteredList);
+
+  res.send(filteredList);
 });
 
 export const mintTokensToAccount = async (createdMintAccount) => {
