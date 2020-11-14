@@ -21,13 +21,12 @@ import {
   mintToken,
   makeAccount,
   sendAndConfirmTransaction,
-  createVote,
 } from "./utils";
 
 const getData = {
   programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-  voteProgramId: "6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry",
-  // voteProgramId: "5LdtX5mJBe4BXhSdS78vp9NvTutXHamLRuzcvQG5F7eA",
+  // oldVoteProgramId: "6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry",
+  voteProgramId: "5LdtX5mJBe4BXhSdS78vp9NvTutXHamLRuzcvQG5F7eA",
   accountId: "2KFnnyTdPm6y1zhtUrSAqn7JbqoVnj683GbEV3E96DYn",
   mintAuthority: "G5Qhd8KnMm7iLbTkseuZdsAbrP9V71eqizQgenHQw8vb",
 };
@@ -99,9 +98,10 @@ app.get("/fetch-votes", async (req, res) => {
     .filter((issue) => issue.issueId !== 0);
 
   const mergeListsTogether = filteredList.map((issue) => {
-    const foundIssue = !!transformVotingResults.find((i) => {
-      return i.issueId === issue.issueId;
-    });
+    const foundIssue =
+      transformVotingResults.find((i) => {
+        return i.issueId.toString() === issue.issueId.toString();
+      }) || {};
 
     return { ...issue, numberOfVotes: foundIssue.numberOfVotes || 0 };
   });
@@ -124,6 +124,7 @@ export const mintTokensToAccount = async (createdMintAccount) => {
 };
 
 app.post("/burn-token", async (req, res) => {
+  console.log(req.body);
   const connection = await connectToSolana();
 
   const userAccount = new Account(
@@ -132,7 +133,7 @@ app.post("/burn-token", async (req, res) => {
 
   const tokenAccount = new PublicKey(req.body.createdMintAccount);
 
-  const issue_number = 55 || req.body.github;
+  const issue_number = req.body.github;
 
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
@@ -188,6 +189,7 @@ app.post("/burn-token", async (req, res) => {
 
       const instruction_data = Buffer.from([issue_number]);
 
+      console.log(instruction_data, "instruction data!!");
       const instruction = new TransactionInstruction({
         keys: [{ pubkey, isSigner: false, isWritable: true }],
         programId: VOTE_PROGRAM_ID,
@@ -227,12 +229,13 @@ app.get("/create-account", async (req, res) => {
 
   await mintTokensToAccount(createdMintAccount);
 
-  var readableAccount = {
+  const readableAccount = {
     publicKey: newAccount.publicKey.toString(),
     privateKey: newAccount.secretKey.toString(),
   };
 
   res.send({
+    newAccount,
     readableAccount,
     createdMintAccount,
   });
