@@ -56,7 +56,6 @@ app.use(
 app.get("/fetch-votes", async (req, res) => {
   const connection = await connectToSolana();
 
-  const privateAccount = await createAccount(process.env.PRIVATE_KEY);
   const owner = req.query.owner || "haggle-quest";
   const repo = req.query.repo || "solana_game";
 
@@ -67,7 +66,6 @@ app.get("/fetch-votes", async (req, res) => {
     `https://api.github.com/repos/${owner}/${repo}/issues?state=all`,
   );
 
-  console.log(fetchList.data);
   const filteredList = [];
   fetchList.data.forEach((listItem) => {
     if (
@@ -109,8 +107,6 @@ app.get("/fetch-votes", async (req, res) => {
     return { ...issue, numberOfVotes: foundIssue.numberOfVotes || 0 };
   });
 
-  console.log(mergeListsTogether, transformVotingResults);
-
   res.send(mergeListsTogether);
 });
 
@@ -129,7 +125,6 @@ export const mintTokensToAccount = async (createdMintAccount) => {
 };
 
 app.post("/burn-token", async (req, res) => {
-  console.log(req.body);
   const connection = await connectToSolana();
 
   const userAccount = new Account(
@@ -211,7 +206,9 @@ app.post("/burn-token", async (req, res) => {
     console.error(e);
   }
 
-  res.send("burnt token");
+  const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
+
+  res.send({ tokenBalance: tokenBalance.value.amount });
 });
 
 app.get("/create-account", async (req, res) => {
