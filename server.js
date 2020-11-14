@@ -9,6 +9,9 @@ const {
   TransactionInstruction,
   Transaction,
 } = require("@solana/web3.js");
+
+const cors = require("cors");
+
 require("dotenv");
 
 import * as BufferLayout from "buffer-layout";
@@ -40,6 +43,9 @@ const VOTE_PROGRAM_ID = new PublicKey(getData.voteProgramId);
 const app = express();
 
 app.use(morgan("tiny"));
+
+app.use(cors());
+app.options("*", cors());
 
 app.use(
   bodyParser.urlencoded({
