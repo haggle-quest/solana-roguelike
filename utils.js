@@ -42,7 +42,6 @@ export const mintToken = async ({
   tokenPublicKey,
   amount,
   TOKEN_PROGRAM_ID,
-  account,
   createdMintAccount,
   connection,
 }) => {
@@ -52,9 +51,7 @@ export const mintToken = async ({
     TOKEN_PROGRAM_ID,
     privateAccount,
   );
-  const privateKeyToMint = await new PublicKey(
-    privateAccount._keypair.publicKey,
-  );
+
   const userAccountFee = await new PublicKey(createdMintAccount);
 
   return await token.mintTo(userAccountFee, privateAccount, [], amount);
@@ -91,22 +88,19 @@ export const createTokenAccount = async ({
     feePayer,
   );
 
-  const happyFace = (
+  const publicTokenAccount = (
     await token.createAccount(new PublicKey(owner._keypair.publicKey))
   ).toString();
 
-  console.log(happyFace, "happy Face???!!");
-  return happyFace;
+  return publicTokenAccount;
 };
 
 export const sendAndConfirmTransaction = async (
-  title,
+  _,
   connection,
   transaction,
   ...signers
 ) => {
-  const when = Date.now();
-
   const signature = await realSendAndConfirmTransaction(
     connection,
     transaction,
@@ -119,19 +113,6 @@ export const sendAndConfirmTransaction = async (
   );
 
   return signature;
-  // const body = {
-  //   time: new Date(when).toString(),
-  //   signature,
-  //   instructions: transaction.instructions.map((i) => {
-  //     return {
-  //       keys: i.keys.map((keyObj) => keyObj.pubkey.toBase58()),
-  //       programId: i.programId.toBase58(),
-  //       data: "0x" + i.data.toString("hex"),
-  //     };
-  //   }),
-  // };
-
-  // notify(title, YAML.stringify(body).replace(/"/g, ""));
 };
 
 export async function makeAccount(
@@ -166,25 +147,3 @@ export async function makeAccount(
 
   return dataAccount.publicKey;
 }
-
-export const createVote = async ({
-  pubkey,
-  issue_number,
-  connection,
-  privateAccount,
-}) => {
-  const instruction_data = Buffer.from([issue_number]);
-
-  const instruction = new TransactionInstruction({
-    keys: [{ pubkey, isSigner: false, isWritable: true }],
-    programId: VOTE_PROGRAM_ID,
-    data: instruction_data,
-  });
-
-  await sendAndConfirmTransaction(
-    "vote",
-    connection,
-    new Transaction().add(instruction),
-    privateAccount,
-  );
-};

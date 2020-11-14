@@ -24,9 +24,9 @@ switch (process.env.CLUSTER) {
     url = "http://devnet.solana.com";
     break;
 
-  //   default:
-  //     console.log("attempting to connect to local node");
-  //     url = "http://localhost:8899";
+  case "local":
+    console.log("attempting to connect to local node");
+    url = "http://localhost:8899";
 
   default:
     console.log("attempting to connect to local node");

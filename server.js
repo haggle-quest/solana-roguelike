@@ -2,9 +2,7 @@ const express = require("express");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const {
-  default: connectToSolana,
-} = require("./client/src/utils/connectToSolana");
+const { default: connectToSolana } = require("./connectToSolana");
 const {
   PublicKey,
   Account,
@@ -105,6 +103,8 @@ app.get("/fetch-votes", async (req, res) => {
 
     return { ...issue, numberOfVotes: foundIssue.numberOfVotes || 0 };
   });
+
+  console.log(mergeListsTogether, transformVotingResults);
 
   res.send(mergeListsTogether);
 });
@@ -240,8 +240,6 @@ app.get("/create-account", async (req, res) => {
     createdMintAccount,
   });
 });
-
-app.put("update-account");
 
 app.use(function (err, req, res, next) {
   console.log(err);
