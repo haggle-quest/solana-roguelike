@@ -21,11 +21,13 @@ import {
   mintToken,
   makeAccount,
   sendAndConfirmTransaction,
+  createVote,
 } from "./utils";
 
 const getData = {
   programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
   voteProgramId: "6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry",
+  // voteProgramId: "5LdtX5mJBe4BXhSdS78vp9NvTutXHamLRuzcvQG5F7eA",
   accountId: "2KFnnyTdPm6y1zhtUrSAqn7JbqoVnj683GbEV3E96DYn",
   mintAuthority: "G5Qhd8KnMm7iLbTkseuZdsAbrP9V71eqizQgenHQw8vb",
 };
@@ -61,54 +63,8 @@ app.get("/fetch-votes", async (req, res) => {
   const owner = req.query.owner || "haggle-quest";
   const repo = req.query.repo || "solana_game";
 
-  const issue_number = 55;
-
-  // find all accounts owned by 6JrnmBqz5H5VqFVT6ep6pvVasV9iMFwLzkB74Y3LJmry
-  // loop over them and decode them, and check if the issue number already exists
-  // if so update s.accountId with that accountId
-  // else create new account id and pass the issue number in the instruction data
-
   const votingProgram = new PublicKey(getData.voteProgramId);
   const getVotingResults = await connection.getProgramAccounts(votingProgram);
-
-  const getCorrectItem = getVotingResults.find((githubIssues) => {
-    const issue = Buffer.from(githubIssues.account.data);
-    const accountDataLayout = BufferLayout.struct([
-      BufferLayout.u32("issueId"),
-      BufferLayout.u32("numberOfVotes"),
-    ]);
-
-    const counts = accountDataLayout.decode(issue);
-    if (counts.issueId.toString() === issue_number.toString()) return true;
-  });
-
-  if (getCorrectItem) {
-    // cool
-    console.log(getCorrectItem, "correct item");
-  } else {
-    const numBytes = 8;
-    const accountId = await makeAccount(
-      connection,
-      privateAccount,
-      numBytes,
-      VOTE_PROGRAM_ID,
-    );
-
-    const instruction_data = Buffer.from([issue_number]);
-
-    const instruction = new TransactionInstruction({
-      keys: [{ pubkey: accountId, isSigner: false, isWritable: true }],
-      programId: VOTE_PROGRAM_ID,
-      data: instruction_data,
-    });
-
-    await sendAndConfirmTransaction(
-      "vote",
-      connection,
-      new Transaction().add(instruction),
-      privateAccount,
-    );
-  }
 
   const fetchList = await axios.get(
     `https://api.github.com/repos/${owner}/${repo}/issues?state=all`,
@@ -122,16 +78,35 @@ app.get("/fetch-votes", async (req, res) => {
           filteredList.push({
             title: listItem.title,
             issueId: listItem.number,
-            votes: Math.floor(Math.random() * 3) + 1,
           });
         }
       });
     }
   });
 
-  console.log(filteredList);
+  const transformVotingResults = getVotingResults
+    .map((vote) => {
+      const issue = Buffer.from(vote.account.data);
+      const accountDataLayout = BufferLayout.struct([
+        BufferLayout.u32("issueId"),
+        BufferLayout.u32("numberOfVotes"),
+      ]);
 
-  res.send(filteredList);
+      const counts = accountDataLayout.decode(issue);
+
+      return counts;
+    })
+    .filter((issue) => issue.issueId !== 0);
+
+  const mergeListsTogether = filteredList.map((issue) => {
+    const foundIssue = !!transformVotingResults.find((i) => {
+      return i.issueId === issue.issueId;
+    });
+
+    return { ...issue, numberOfVotes: foundIssue.numberOfVotes || 0 };
+  });
+
+  res.send(mergeListsTogether);
 });
 
 export const mintTokensToAccount = async (createdMintAccount) => {
@@ -143,7 +118,7 @@ export const mintTokensToAccount = async (createdMintAccount) => {
     createdMintAccount,
     tokenPublicKey,
     TOKEN_PROGRAM_ID,
-    amount: 10,
+    amount: 3,
     privateAccount,
   });
 };
@@ -157,6 +132,8 @@ app.post("/burn-token", async (req, res) => {
 
   const tokenAccount = new PublicKey(req.body.createdMintAccount);
 
+  const issue_number = 55 || req.body.github;
+
   const privateAccount = await createAccount(process.env.PRIVATE_KEY);
 
   try {
@@ -168,6 +145,62 @@ app.post("/burn-token", async (req, res) => {
       privateAccount,
       tokenAccount,
     });
+    const votingProgram = new PublicKey(getData.voteProgramId);
+    const getVotingResults = await connection.getProgramAccounts(votingProgram);
+
+    const getCorrectItem = getVotingResults.find((githubIssues) => {
+      const issue = Buffer.from(githubIssues.account.data);
+      const accountDataLayout = BufferLayout.struct([
+        BufferLayout.u32("issueId"),
+        BufferLayout.u32("numberOfVotes"),
+      ]);
+
+      const counts = accountDataLayout.decode(issue);
+
+      if (counts.issueId.toString() === issue_number.toString()) return true;
+    });
+
+    if (getCorrectItem) {
+      const instruction_data = Buffer.from([issue_number]);
+
+      const instruction = new TransactionInstruction({
+        keys: [
+          { pubkey: getCorrectItem.pubkey, isSigner: false, isWritable: true },
+        ],
+        programId: VOTE_PROGRAM_ID,
+        data: instruction_data,
+      });
+
+      await sendAndConfirmTransaction(
+        "vote",
+        connection,
+        new Transaction().add(instruction),
+        privateAccount,
+      );
+    } else {
+      const numBytes = 8;
+      const pubkey = await makeAccount(
+        connection,
+        privateAccount,
+        numBytes,
+        VOTE_PROGRAM_ID,
+      );
+
+      const instruction_data = Buffer.from([issue_number]);
+
+      const instruction = new TransactionInstruction({
+        keys: [{ pubkey, isSigner: false, isWritable: true }],
+        programId: VOTE_PROGRAM_ID,
+        data: instruction_data,
+      });
+
+      await sendAndConfirmTransaction(
+        "vote",
+        connection,
+        new Transaction().add(instruction),
+        privateAccount,
+      );
+    }
   } catch (e) {
     console.error(e);
   }
@@ -193,8 +226,6 @@ app.get("/create-account", async (req, res) => {
   });
 
   const tokenAccount = await mintTokensToAccount(createdMintAccount);
-
-  console.log(tokenAccount, "Token account");
 
   res.send({
     newAccount,

@@ -164,7 +164,27 @@ export async function makeAccount(
     dataAccount,
   );
 
-  console.log(confirm, "confirm");
-
   return dataAccount.publicKey;
 }
+
+export const createVote = async ({
+  pubkey,
+  issue_number,
+  connection,
+  privateAccount,
+}) => {
+  const instruction_data = Buffer.from([issue_number]);
+
+  const instruction = new TransactionInstruction({
+    keys: [{ pubkey, isSigner: false, isWritable: true }],
+    programId: VOTE_PROGRAM_ID,
+    data: instruction_data,
+  });
+
+  await sendAndConfirmTransaction(
+    "vote",
+    connection,
+    new Transaction().add(instruction),
+    privateAccount,
+  );
+};
