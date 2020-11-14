@@ -67,9 +67,14 @@ app.get("/fetch-votes", async (req, res) => {
     `https://api.github.com/repos/${owner}/${repo}/issues?state=all`,
   );
 
+  console.log(fetchList.data);
   const filteredList = [];
   fetchList.data.forEach((listItem) => {
-    if (listItem.labels && listItem.labels.length) {
+    if (
+      listItem.labels &&
+      listItem.labels.length &&
+      listItem.state === "open"
+    ) {
       listItem.labels.forEach((label) => {
         if (label.name === "voting") {
           filteredList.push({
@@ -189,7 +194,6 @@ app.post("/burn-token", async (req, res) => {
 
       const instruction_data = Buffer.from([issue_number]);
 
-      console.log(instruction_data, "instruction data!!");
       const instruction = new TransactionInstruction({
         keys: [{ pubkey, isSigner: false, isWritable: true }],
         programId: VOTE_PROGRAM_ID,
