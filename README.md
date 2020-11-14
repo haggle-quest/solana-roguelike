@@ -22,6 +22,7 @@ Returns: a list of github issues with the *voting* tag and the number of votes e
 
 **Burn Tokens**
 Body: The spl token account, the token creators key, and the github issue to vote on.
+
 Returns: The Github issue number voted on.
 
 What it does: Burns the requisite number of vote tokens and increase the vote count in a solana smart contract that contains a list of all votes and their corresponding issues.
