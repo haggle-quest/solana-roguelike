@@ -230,6 +230,10 @@ app.get("/create-account", async (req, res) => {
 
   await mintTokensToAccount(createdMintAccount);
 
+  const tokenAccount = new PublicKey(createdMintAccount);
+
+  const tokenBalance = await connection.getTokenAccountBalance(tokenAccount);
+
   const readableAccount = {
     publicKey: newAccount.publicKey.toString(),
     privateKey: newAccount.secretKey.toString(),
@@ -239,6 +243,7 @@ app.get("/create-account", async (req, res) => {
     newAccount,
     readableAccount,
     createdMintAccount,
+    tokenBalance: tokenBalance.value.amount,
   });
 });
 
