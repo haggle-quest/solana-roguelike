@@ -225,10 +225,15 @@ app.get("/create-account", async (req, res) => {
     owner: newAccount,
   });
 
-  const tokenAccount = await mintTokensToAccount(createdMintAccount);
+  await mintTokensToAccount(createdMintAccount);
+
+  var readableAccount = {
+    publicKey: newAccount.publicKey.toString(),
+    privateKey: newAccount.secretKey.toString(),
+  };
 
   res.send({
-    newAccount,
+    readableAccount,
     createdMintAccount,
   });
 });
