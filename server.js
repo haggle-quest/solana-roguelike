@@ -248,6 +248,6 @@ app.use(function (err, req, res, next) {
     .send(err.message || GENERIC_ERROR_MESSAGE());
 });
 
-app.listen(4000, function () {
+app.listen(process.env.PORT || 4000, function () {
   console.log(`Server starting on port 4000!`);
 });
